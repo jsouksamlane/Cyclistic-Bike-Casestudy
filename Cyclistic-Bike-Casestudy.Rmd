@@ -1,0 +1,310 @@
+---
+title: "Cyclistic-Bike-Casestudy"
+author: "Jalen Souksamlane"
+date: "9/22/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)  #helps wrangle data
+library(ggplot2)  #helps visualize data
+library(formatR) #helps format pdf
+library(chron) #for manipulating times
+library(lubridate) #for manipulating times
+
+knitr::opts_chunk$set(echo = TRUE,
+                      tidy.opts=list(width.cutoff=60),
+                      tidy=TRUE
+                      )
+
+```
+
+# Introduction
+
+In 2016, Cyclistic launched a successful bike-share offering. Since then, the program has grown to a fleet of 5,824 bicycles that are geotracked and locked into a network of 692 stations across Chicago. The bikes can be unlocked from one station and returned to any other station in the system anytime.
+
+Until now, Cyclistic’s marketing strategy relied on building general awareness and appealing to broad consumer segments. One approach that helped make these things possible was the flexibility of its pricing plans: single-ride passes, full-day passes, and annual memberships. Customers who purchase single-ride or full-day passes are referred to as casual riders. Customers who purchase annual memberships are Cyclistic members.
+
+Cyclistic’s finance analysts have concluded that annual members are much more profitable than casual riders. Although the pricing flexibility helps Cyclistic attract more customers, they believe that maximizing the number of annual members will be key to future growth. Rather than creating a marketing campaign that targets all-new customers, they believe there is a very good chance to convert casual riders into members. With this in mind, Cyclistic's finance analysts have a clear goal: Design marketing strategies aimed at converting casual riders into annual members
+
+In order to do this, one question that may be asked is: **How do annual members and casual riders use Cyclistic bikes differently?**
+
+# Data
+
+Motivate International Inc. (“Motivate”) operates the City of Chicago’s (“City”) Divvy bicycle sharing service. Motivate and the City are committed to supporting bicycling as an alternative transportation option. As part of that commitment, the City permits Motivate to make certain Divvy system data owned by the City available to the public. Cyclistic is a fictional company, but for the purposes of this case study, the datasets from Motivate are appropriate in finding an answer to the question. 
+
+The data from this case study is provided by Motivate and will be of the last 12 months, one dataset for each month. The variables for each dataset include ride_id, rideable_type, started_at, ended_at, start_station_name, start_station_id, end_station_name, end_station_id, start_lat, start_lng, end_lat, end_lng, member_casual.
+
+```{r data}
+# reading in and renaming the data
+aug2020 <- read.csv('~/Programming/Divvy Bike Project/data/202008-divvy-tripdata.csv')
+sep2020 <- read.csv('~/Programming/Divvy Bike Project/data/202009-divvy-tripdata.csv')
+oct2020 <- read.csv('~/Programming/Divvy Bike Project/data/202010-divvy-tripdata.csv')
+nov2020 <- read.csv('~/Programming/Divvy Bike Project/data/202011-divvy-tripdata.csv')
+dec2020 <- read.csv('~/Programming/Divvy Bike Project/data/202012-divvy-tripdata.csv')
+jan2021 <- read.csv('~/Programming/Divvy Bike Project/data/202101-divvy-tripdata.csv')
+feb2021 <- read.csv('~/Programming/Divvy Bike Project/data/202102-divvy-tripdata.csv')
+mar2021 <- read.csv('~/Programming/Divvy Bike Project/data/202103-divvy-tripdata.csv')
+apr2021 <- read.csv('~/Programming/Divvy Bike Project/data/202104-divvy-tripdata.csv')
+may2021 <- read.csv('~/Programming/Divvy Bike Project/data/202105-divvy-tripdata.csv')
+jun2021 <- read.csv('~/Programming/Divvy Bike Project/data/202106-divvy-tripdata.csv')
+jul2021 <- read.csv('~/Programming/Divvy Bike Project/data/202107-divvy-tripdata.csv')
+
+```
+
+Firstly, creating a data frame with all the data within it would make cleaning and transforming easier in the future.
+
+```{r single list, results = 'hide'}
+# adding all data sets to a list
+data <- list(aug2020,sep2020,oct2020,nov2020,dec2020,jan2021,feb2021,mar2021,apr2021,may2021,jun2021,jul2021)
+
+#  checking the strucure of each data set before combining into one 
+for(x in data){
+  print(str(x))
+}
+```
+
+It seems that from December onwards, the start_station_id and the end_station_id are factors instead of integers. In order to combine all the data into one frame, this must be consistent throughout all of the data.
+
+```{r str change}
+# changing data type from factor to integer
+dec2020 <- dec2020 %>% 
+  mutate(start_station_id = as.numeric(start_station_id), end_station_id = as.numeric(end_station_id))
+jan2021 <- jan2021 %>% 
+  mutate(start_station_id = as.numeric(start_station_id), end_station_id = as.numeric(end_station_id))
+feb2021 <- feb2021 %>% 
+  mutate(start_station_id = as.numeric(start_station_id), end_station_id = as.numeric(end_station_id))
+mar2021 <- mar2021 %>% 
+  mutate(start_station_id = as.numeric(start_station_id), end_station_id = as.numeric(end_station_id))
+apr2021 <- apr2021 %>% 
+  mutate(start_station_id = as.numeric(start_station_id), end_station_id = as.numeric(end_station_id))
+may2021 <- may2021 %>% 
+  mutate(start_station_id = as.numeric(start_station_id), end_station_id = as.numeric(end_station_id))
+jun2021 <- jun2021 %>% 
+  mutate(start_station_id = as.numeric(start_station_id), end_station_id = as.numeric(end_station_id))
+jul2021 <- jul2021 %>% 
+  mutate(start_station_id = as.numeric(start_station_id), end_station_id = as.numeric(end_station_id))
+
+# creating singular data frame
+clean_data <- rbind(aug2020,sep2020,oct2020,nov2020,dec2020,jan2021,feb2021,mar2021,apr2021,may2021,jun2021,jul2021)
+```
+
+The removal of unnecessary data is essential. This will reduce the amount of data that needs to be prepared and cleaned in order to move on to the next step. 
+
+The variables that will be removed are start_lat, start_lng, end_lat, end_lng. These variables are being removed because they hold no significance to this analysis. Latitude and Longitude are indicators of distance traveled, but in this instance, if the user were to start and end in the same spot, the difference between the latitude and longitude would be 0. Therefore, in this dataset, latitude and longitude are not good indicators.
+
+```{r column removal}
+clean_data_1 <- subset(clean_data, select = (-c(start_lat,end_lat,start_lng,end_lng)))
+```
+
+The removal of n/a values or zeroes will also help declutter the dataset.
+
+```{r zeros removal}
+# filling in empty factors with na
+clean_data_1 <- clean_data_1 %>%
+  mutate_if(is.factor, na_if, y = "")
+
+# checking columns for n/a values
+apply(clean_data_1, 2, function(x) any(is.na(x)))
+
+# removing n/a values
+clean_data_2 <- na.omit(clean_data_1)
+
+# number of observations removed
+print((dim(clean_data_1)-dim(clean_data_2))[1])
+```
+
+Upon further inspection of the data, it appears that there is test data in the dataset. Removal of these observations will allow us to only analyze rides with actual members.
+
+```{r obs removal}
+clean_data_3 <- clean_data_2[!(clean_data_2$start_station_id == 676),]
+```
+
+In order to perform calculations on the ride length, we must split the date and time of each ride.
+
+```{r date time split}
+# changing factors to strings
+clean_data_4 <- clean_data_3 %>%
+  mutate(started_at = as.character(started_at), ended_at = as.character(ended_at))
+
+# splitting started_at into two different variables, start_date and start_time
+start <- str_split_fixed(clean_data_4$started_at, ' ', 2)
+start_date <- as.Date(start[,1], '%Y-%m-%d')
+start_time <- chron(times = start[,2])
+
+# splitting ended_at into two different variables, start_date and start_time
+end <- str_split_fixed(clean_data_4$ended_at, ' ', 2)
+end_date <- as.Date(end[,1], '%Y-%m-%d')
+end_time <- chron(times = end[,2])
+
+# adding newly created columns to dataframe
+clean_data_4$start_date <- start_date
+clean_data_4$start_time <- start_time
+clean_data_4$end_date <- end_date
+clean_data_4$end_time <- end_time
+
+# removing old columns
+clean_data_5 <- subset(clean_data_4, select = (-c(started_at, ended_at)))
+
+# creating a column for ride length
+ride_length <- abs(clean_data_5$start_time - clean_data_5$end_time)
+clean_data_5$ride_length <- ride_length
+
+# creating a column for day of the week
+clean_data_5$weekday <- weekdays(clean_data_5$start_date)
+
+# fixing ordering of weekdays
+clean_data_5$weekday <- ordered(clean_data_5$weekday, 
+                                levels = c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"))
+
+# creating a column for month
+clean_data_5$month <- month(ymd(clean_data_5$start_date), label = TRUE)
+```
+
+Finally, we will remove more columns that will not be used in the analysis process. These columns are ride_id, start_station_id, and end_station_id.
+
+```{r column removal 2}
+final_data <- subset(clean_data_5, select = -c(ride_id, start_station_id, end_station_id))
+
+# final dimensions of dataset
+dim(final_data)
+```
+
+# Analysis
+## Descriptive Analysis on ride length
+
+```{r ride length analysis}
+# mean, median, max, and min of ride_length
+summary(final_data$ride_length)
+
+# comparing the average ride_length between riders
+aggregate(final_data$ride_length ~ final_data$member_casual, FUN = mean)
+
+# comparing the median ride_length between riders
+aggregate(final_data$ride_length ~ final_data$member_casual, FUN = median)
+
+# comparing the max ride_length bewteen riders
+aggregate(final_data$ride_length ~ final_data$member_casual, FUN = max)
+
+# comparing the min ride_length between riders
+aggregate(final_data$ride_length ~ final_data$member_casual, FUN = min)
+
+# comparing the average ride_length between riders by weekdays
+aggregate(final_data$ride_length ~ final_data$member_casual + final_data$weekday, FUN = mean)
+
+# comparing the average ride_length between riders by month
+aggregate(final_data$ride_length ~ final_data$member_casual + final_data$month, FUN = mean)
+
+```
+
+## Data Visualization of ride length
+```{r graph 1}
+final_data %>%
+  group_by(member_casual, weekday) %>%
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>%
+  arrange(member_casual, weekday) %>%
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::comma) +
+  ggtitle("Plot of # of Rides for casual vs. member")
+```
+
+```{r graph 2}
+final_data %>%
+  group_by(member_casual, weekday) %>%
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>%
+  arrange(member_casual, weekday) %>%
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  ggtitle("Plot of Average Ride Duration by Weekday for casual vs. member")
+```
+
+```{r graph 3}
+final_data %>%
+  group_by(member_casual, month) %>%
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>%
+  arrange(member_casual, month) %>%
+  ggplot(aes(x = month, y = average_duration, fill = member_casual)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Plot for Average Ride Duration by Month for casual vs. member")
+```
+
+### Notes
+* On average, casual riders ride almost twice as long as members do
+* Members ride more often during the week while Casuals ride more often during the weekend
+* While member ride duration is about the same throughout the year, casual ride duration is longer during spring/summer seasons, peaking in the month of August
+
+## Descriptive Analysis of rideable type
+```{r ride type analysis}
+# total usage of bikes
+summary(final_data$rideable_type)
+
+# comparing the usages of bikes by member type
+final_data %>%
+  group_by(rideable_type, member_casual) %>%
+  summarize(freq = n())
+```
+
+## Data Visualization of rideable type
+```{r graph 4}
+final_data %>%
+  group_by(member_casual, rideable_type) %>%
+  summarise(number_of_rides = n(), bike_usage = length(rideable_type)) %>%
+  arrange(member_casual, rideable_type) %>%
+  ggplot(aes(x = rideable_type, y = bike_usage, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::comma) +
+  ggtitle("Plot of Bike Usage for casual vs. member")
+```
+
+### Notes
+* Docked bike usage is about the same between casuals and members
+* Electric bike usage is slightly higher for members
+* Classic bike usage is significantly higher for members
+
+## Descriptive Analysis for stations
+```{r station analysis}
+final_data %>%
+  group_by(start_station_name) %>%
+  summarize(freq = n()) %>%
+  top_n(5)
+
+final_data %>%
+  group_by(end_station_name) %>%
+  summarize(freq = n()) %>%
+  top_n(5)
+```
+
+```{r graph 5}
+final_data %>%
+  group_by(start_station_name) %>%
+  summarize(freq = n()) %>%
+  top_n(30) %>%
+  ggplot(aes(reorder(start_station_name, freq), y = freq, fill = freq)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  ggtitle("30 Most Popular Starting Stations")
+```
+
+```{r graph 6}
+final_data %>%
+  group_by(end_station_name) %>%
+  summarize(freq = n()) %>%
+  top_n(30) %>%
+  ggplot(aes(reorder(end_station_name, freq), y = freq, fill = freq)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  ggtitle("30 Most Popular Ending Stations")
+```
+
+### Notes
+* Streeter Dr & Grand Ave appears to be the station most riders start and end at
+
+# Conclusions
+
+As seen in the analysis, annual members and casual riders differ in the way they use Cyclistic bikes. For example, casual riders usually take longer rides and prefer to ride on weekends rather than weekdays. This can be due to the fact that casual riders use the bikes in their free time when they are off work. On the other hand, annual members take shorter rides and there is no significant preference for days. This can be explained by annual riders using these bikes as a way of daily transportation. Furthermore, annual members have a strong preference for classic bikes. Thus, maybe classic bikes are more suited for daily commutes.
+
+## Recommendations
+* Focus advertising on the 5 most popular starting and ending stations as they will have the most traffic
+* Advertise the benefits of riding a bike to work (This might help persuade casual riders to buy an annual membership)
+* Focus advertising for annual membership on the weekends as more casual riders are renting bikes on those days
